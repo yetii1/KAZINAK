@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Roulette Engine</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --red: #e63946;
+    --green: #2d9d5c;
+    --white: #f0ece4;
+    --dim: #555;
+    --gold: #c9a84c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding-bottom: 20px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--white);
+  }
+  .header-badge {
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* SECTOR CARDS */
+  .sector-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    padding: 12px 12px 6px;
+  }
+  .sector-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 6px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+  .sector-card.active {
+    border-color: var(--gold);
+    background: #1e1a0e;
+  }
+  .sector-card .label {
+    font-size: 8px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .sector-card .value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--white);
+  }
+  .sector-card .pct {
+    font-size: 9px;
+    color: var(--gold);
+    margin-top: 2px;
+  }
+
+  /* INFO PANELS */
+  .info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 0 12px 10px;
+  }
+  .info-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .info-panel .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-red { background: var(--red); }
+  .dot-black { background: #fff; }
+  .dot-green { background: var(--green); }
+  .info-panel .info-label { font-size: 8px; color: var(--dim); letter-spacing: 1px; }
+  .info-panel .info-val { font-size: 13px; color: var(--white); }
+
+  /* ZERO CARD */
+  .zero-card {
+    margin: 0 12px 10px;
+    background: #0d1f14;
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 10px 14px;
+    display: none;
+    animation: pulse 1s ease-in-out infinite alternate;
+  }
+  .zero-card.show { display: flex; align-items: center; gap: 12px; }
+  .zero-card-icon {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--green);
+  }
+  .zero-card-text .title { font-size: 10px; color: var(--green); letter-spacing: 2px; }
+  .zero-card-text .desc { font-size: 12px; color: var(--white); margin-top: 3px; }
+
+  @keyframes pulse {
+    from { box-shadow: 0 0 4px var(--green); }
+    to { box-shadow: 0 0 14px var(--green); }
+  }
+
+  /* TOP 3 NUMBERS */
+  .top3-section {
+    padding: 0 12px 10px;
+  }
+  .section-label {
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  .top3-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .top3-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 6px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .top3-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .top3-card.rank-1::before { background: var(--gold); }
+  .top3-card.rank-2::before { background: var(--dim); }
+  .top3-card.rank-3::before { background: #3a2a1a; }
+
+  .top3-card .rank { font-size: 8px; color: var(--dim); letter-spacing: 1px; }
+  .top3-card .num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    line-height: 1;
+    margin: 2px 0;
+  }
+  .top3-card .num.red { color: var(--red); }
+  .top3-card .num.black { color: var(--white); }
+  .top3-card .num.green { color: var(--green); }
+  .top3-card .score { font-size: 9px; color: var(--gold); }
+
+  /* HISTORY */
+  .history-section {
+    padding: 0 12px 10px;
+  }
+  .history-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .back-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .back-btn:active { background: var(--border); }
+
+  .history-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .history-row::-webkit-scrollbar { display: none; }
+
+  .hist-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+  }
+  .hist-num.red { background: var(--red); color: #fff; }
+  .hist-num.black { background: #222; color: #fff; border-color: #444; }
+  .hist-num.green { background: var(--green); color: #fff; }
+  .hist-num.latest { border-color: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+  /* HIT BANNER */
+  .hit-banner {
+    display: none;
+    margin: 0 12px 10px;
+    background: #0a1f0a;
+    border: 1px solid #00ff88;
+    border-radius: 4px;
+    padding: 10px 14px;
+    align-items: center;
+    gap: 12px;
+    animation: hitPulse 0.6s ease-in-out infinite alternate;
+  }
+  .hit-banner.show { display: flex; }
+  .hit-icon {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: #00ff88;
+    text-shadow: 0 0 12px #00ff88;
+  }
+  .hit-text .hit-title {
+    font-size: 10px;
+    color: #00ff88;
+    letter-spacing: 3px;
+  }
+  .hit-text .hit-desc {
+    font-size: 13px;
+    color: var(--white);
+    margin-top: 2px;
+  }
+  @keyframes hitPulse {
+    from { box-shadow: 0 0 6px #00ff88; }
+    to { box-shadow: 0 0 20px #00ff88; }
+  }
+
+  /* top3 HIT mark */
+  .top3-card.hit {
+    border-color: #00ff88 !important;
+    background: #091a0e !important;
+    animation: hitPulse 0.7s ease-in-out infinite alternate;
+  }
+  .top3-card.hit::after {
+    content: '✓ HIT';
+    position: absolute;
+    bottom: 4px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 8px;
+    color: #00ff88;
+    letter-spacing: 2px;
+  }
+
+  /* ROULETTE FIELD */
+  .field-section {
+    padding: 0 8px;
+  }
+  .field-top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .zero-btn {
+    background: var(--green);
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    border: none;
+    border-radius: 3px;
+    padding: 10px;
+    cursor: pointer;
+    transition: filter 0.2s;
+    text-align: center;
+  }
+  .zero-btn:active { filter: brightness(1.3); }
+  .zero-btn.selected { outline: 2px solid var(--gold); }
+
+  /* FIELD SECTORS WRAPPER */
+  .field-sectors {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+  .field-sector-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .field-sector-label {
+    font-size: 8px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-align: center;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+  .field-sector-block.sec-active .field-sector-label {
+    color: var(--gold);
+    border-color: var(--gold);
+  }
+  .field-sector-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .cell.red { background: #3a0a0a; color: var(--red); border-color: #5a1a1a; }
+  .cell.black { background: #1a1a1a; color: #ccc; border-color: #2a2a2a; }
+  .cell.red:active { background: var(--red); color: #fff; }
+  .cell.black:active { background: #444; color: #fff; }
+
+  .cell.selected {
+    background: var(--gold) !important;
+    color: #000 !important;
+    border-color: var(--gold) !important;
+    transform: scale(1.1);
+    box-shadow: 0 0 8px var(--gold);
+  }
+  .cell.highlighted {
+    border-color: var(--gold);
+    box-shadow: 0 0 4px rgba(201,168,76,0.4);
+  }
+  .cell.hit-cell {
+    background: #091a0e !important;
+    border-color: #00ff88 !important;
+    color: #00ff88 !important;
+    box-shadow: 0 0 8px #00ff88 !important;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 20px;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">ROULETTE ENGINE</div>
+    <div class="header-badge">EUROPEAN ANALYSIS SYSTEM</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:9px;color:var(--dim)">NUMBERS IN</div>
+    <div id="countDisplay" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold)">0</div>
+  </div>
+</div>
+
+<!-- SECTOR CARDS -->
+<div class="sector-row">
+  <div class="sector-card" id="sec1">
+    <div class="label">СЕКТОР 1</div>
+    <div class="value">1–12</div>
+    <div class="pct" id="sec1pct">—</div>
+  </div>
+  <div class="sector-card" id="sec2">
+    <div class="label">СЕКТОР 2</div>
+    <div class="value">13–24</div>
+    <div class="pct" id="sec2pct">—</div>
+  </div>
+  <div class="sector-card" id="sec3">
+    <div class="label">СЕКТОР 3</div>
+    <div class="value">25–36</div>
+    <div class="pct" id="sec3pct">—</div>
+  </div>
+</div>
+
+<!-- INFO PANELS -->
+<div class="info-row">
+  <div class="info-panel">
+    <div class="dot" id="colorDot" style="background:var(--dim)"></div>
+    <div>
+      <div class="info-label">ЦВЕТ</div>
+      <div class="info-val" id="colorVal">—</div>
+    </div>
+  </div>
+  <div class="info-panel">
+    <div class="dot" style="background:var(--dim)"></div>
+    <div>
+      <div class="info-label">ДИАПАЗОН</div>
+      <div class="info-val" id="rangeVal">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ZERO CARD -->
+<div class="zero-card" id="zeroCard">
+  <div class="zero-card-icon">0</div>
+  <div class="zero-card-text">
+    <div class="title">ЗЕЛЁНАЯ ЗОНА</div>
+    <div class="desc" id="zeroDesc">Выпал зеро — особый режим</div>
+  </div>
+</div>
+
+<!-- HIT BANNER -->
+<div class="hit-banner" id="hitBanner">
+  <div class="hit-icon">✓</div>
+  <div class="hit-text">
+    <div class="hit-title">СОВПАДЕНИЕ!</div>
+    <div class="hit-desc" id="hitDesc">Число вошло в прогноз</div>
+  </div>
+</div>
+
+<!-- TOP 3 -->
+<div class="top3-section">
+  <div class="section-label">▲ ПРОГНОЗ — ТОП 3 ЧИСЛА</div>
+  <div class="top3-row" id="top3Row">
+    <div class="empty-state" style="grid-column:1/-1">Введите первое число</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- HISTORY -->
+<div class="history-section">
+  <div class="history-controls">
+    <div class="section-label" style="margin:0">ПОСЛЕДНИЕ 10</div>
+    <button class="back-btn" onclick="undoLast()">◀ BACK</button>
+  </div>
+  <div class="history-row" id="historyRow">
+    <div style="color:var(--dim);font-size:10px">история пуста</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ROULETTE FIELD -->
+<div class="field-section">
+  <div class="section-label" style="padding: 0 4px 6px">РУЛЕТОЧНОЕ ПОЛЕ</div>
+  <div class="field-top">
+    <button class="zero-btn" id="btn0" onclick="selectNumber(0)">0</button>
+    <button class="zero-btn" id="btn00" onclick="selectNumber(37)" style="background:#1a4a2a">00</button>
+  </div>
+  <div class="field-sectors">
+    <div class="field-sector-block" id="fsec1">
+      <div class="field-sector-label">С1 · 1–12</div>
+      <div class="field-sector-grid" id="fieldGrid1"></div>
+    </div>
+    <div class="field-sector-block" id="fsec2">
+      <div class="field-sector-label">С2 · 13–24</div>
+      <div class="field-sector-grid" id="fieldGrid2"></div>
+    </div>
+    <div class="field-sector-block" id="fsec3">
+      <div class="field-sector-label">С3 · 25–36</div>
+      <div class="field-sector-grid" id="fieldGrid3"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26,37];
+// 37 = "00"
+const RED_NUMS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const GREEN_NUMS = new Set([0,37]);
+
+function getColor(n) {
+  if (GREEN_NUMS.has(n)) return 'green';
+  if (RED_NUMS.has(n)) return 'red';
+  return 'black';
+}
+
+function displayNum(n) { return n === 37 ? '00' : String(n); }
+
+function getSector(n) {
+  if (n === 0 || n === 37) return 0;
+  if (n <= 12) return 1;
+  if (n <= 24) return 2;
+  return 3;
+}
+
+function getRange(n) {
+  if (n === 0 || n === 37) return 0;
+  return n <= 18 ? 1 : 2;
+}
+
+function getColumn(n) {
+  if (n === 0 || n === 37) return 0;
+  const r = n % 3;
+  if (r === 1) return 1;
+  if (r === 2) return 2;
+  return 3;
+}
+
+// Wheel index
+const wheelIndex = {};
+WHEEL.forEach((n, i) => { wheelIndex[n] = i; });
+
+function getNeighbors(n, radius) {
+  const idx = wheelIndex[n];
+  if (idx === undefined) return [];
+  const neighbors = [];
+  const len = WHEEL.length;
+  for (let d = 1; d <= radius; d++) {
+    neighbors.push({ num: WHEEL[(idx - d + len) % len], dist: d });
+    neighbors.push({ num: WHEEL[(idx + d) % len], dist: d });
+  }
+  return neighbors;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let history = [];
+
+// ============================================================
+// ALGORITHM
+// ============================================================
+function computePrediction() {
+  if (history.length === 0) return null;
+
+  const last = history[history.length - 1];
+  const recent = history.slice(-10);
+
+  // Score map
+  const scores = {};
+  for (let i = 0; i < 38; i++) scores[i] = 0;
+
+  // K — wheel neighbors (70%)
+  const neighbors = getNeighbors(last, 5);
+  neighbors.forEach(({ num, dist }) => {
+    scores[num] += (70 * (6 - dist)) / 15; // weight by proximity
+  });
+
+  // P — series behavior (20%)
+  if (recent.length >= 2) {
+    const prev = recent[recent.length - 2];
+    const prevIdx = wheelIndex[prev];
+    const lastIdx = wheelIndex[last];
+    const diff = ((lastIdx - prevIdx + WHEEL.length) % WHEEL.length);
+    // Predict continuation of pattern
+    const predictedIdx = (lastIdx + diff) % WHEEL.length;
+    for (let d = -2; d <= 2; d++) {
+      const ni = (predictedIdx + d + WHEEL.length) % WHEEL.length;
+      scores[WHEEL[ni]] += 20 / (Math.abs(d) + 1);
+    }
+    // Sector transitions
+    const prevSec = getSector(prev);
+    const lastSec = getSector(last);
+    if (prevSec !== lastSec) {
+      // Different sector — boost continuation
+      for (let i = 0; i < 38; i++) {
+        if (getSector(WHEEL[i] !== undefined ? WHEEL[i] : i) === lastSec) {
+          scores[i] += 5;
+        }
+      }
+    }
+  }
+
+  // C — field factors (10%)
+  const lastColor = getColor(last);
+  const colorStreak = (() => {
+    let s = 0;
+    for (let i = recent.length - 1; i >= 0; i--) {
+      if (getColor(recent[i]) === lastColor) s++;
+      else break;
+    }
+    return s;
+  })();
+
+  for (let i = 0; i < 38; i++) {
+    const n = i === 37 ? 37 : i;
+    // Color factor
+    if (colorStreak >= 3 && getColor(n) !== lastColor) scores[n] += 5;
+    else if (colorStreak < 3 && getColor(n) === lastColor) scores[n] += 3;
+    // Sector factor
+    if (getSector(n) === getSector(last)) scores[n] += 2;
+    // Column factor
+    if (getColumn(n) === getColumn(last)) scores[n] += 1;
+  }
+
+  // Remove current number from prediction
+  scores[last] = -Infinity;
+
+  // Sort
+  const allNums = Array.from({length: 38}, (_, i) => i);
+  allNums.sort((a, b) => scores[b] - scores[a]);
+
+  const top3 = allNums.slice(0, 3);
+  const totalScore = top3.reduce((s, n) => s + Math.max(0, scores[n]), 0);
+
+  return {
+    top3,
+    scores,
+    totalScore,
+    predictedSector: getSector(top3[0]),
+    predictedColor: getColor(top3[0]),
+    predictedRange: getRange(top3[0]),
+  };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const count = history.length;
+  document.getElementById('countDisplay').textContent = count;
+
+  // History row
+  const hRow = document.getElementById('historyRow');
+  const recent10 = history.slice(-10);
+  if (recent10.length === 0) {
+    hRow.innerHTML = '<div style="color:var(--dim);font-size:10px">история пуста</div>';
+  } else {
+    hRow.innerHTML = recent10.map((n, i) => {
+      const isLatest = i === recent10.length - 1;
+      return `<div class="hist-num ${getColor(n)} ${isLatest ? 'latest' : ''}">${displayNum(n)}</div>`;
+    }).join('');
+  }
+
+  // Zero card
+  const zCard = document.getElementById('zeroCard');
+  const last = history[history.length - 1];
+  if (last !== undefined && GREEN_NUMS.has(last)) {
+    zCard.classList.add('show');
+    document.getElementById('zeroDesc').textContent = `Выпал ${displayNum(last)} — повышенное внимание на зеро`;
+  } else {
+    zCard.classList.remove('show');
+  }
+
+  if (count === 0) {
+    document.getElementById('top3Row').innerHTML = '<div class="empty-state" style="grid-column:1/-1">Введите первое число</div>';
+    document.getElementById('hitBanner').classList.remove('show');
+    resetInfoPanels();
+    clearFieldHighlights();
+    return;
+  }
+
+  const pred = computePrediction();
+  if (!pred) return;
+
+  // HIT detection — check if the LATEST number was in PREVIOUS prediction
+  // We store prevTop3 in a variable updated after each render
+  const hitBanner = document.getElementById('hitBanner');
+  const hitNums = new Set();
+  if (window._prevTop3 && history.length >= 2) {
+    const latestNum = history[history.length - 1];
+    if (window._prevTop3.includes(latestNum)) {
+      hitNums.add(latestNum);
+      const rank = window._prevTop3.indexOf(latestNum) + 1;
+      hitBanner.classList.add('show');
+      document.getElementById('hitDesc').textContent = `${displayNum(latestNum)} — совпал с прогнозом #${rank}!`;
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } else {
+      hitBanner.classList.remove('show');
+    }
+  } else {
+    hitBanner.classList.remove('show');
+  }
+
+  // Sector cards
+  [1,2,3].forEach(s => {
+    const card = document.getElementById(`sec${s}`);
+    card.classList.toggle('active', pred.predictedSector === s);
+    const secCount = history.filter(n => getSector(n) === s).length;
+    const pct = count > 0 ? Math.round(secCount / count * 100) : 0;
+    document.getElementById(`sec${s}pct`).textContent = `${pct}% (${secCount})`;
+  });
+
+  // Color panel
+  const colorDot = document.getElementById('colorDot');
+  const colorVal = document.getElementById('colorVal');
+  const colorMap = { red: 'КРАСНЫЙ', black: 'ЧЁРНЫЙ', green: 'ЗЕЛЁНЫЙ' };
+  colorDot.style.background = pred.predictedColor === 'red' ? 'var(--red)' : pred.predictedColor === 'green' ? 'var(--green)' : '#fff';
+  colorVal.textContent = colorMap[pred.predictedColor];
+
+  // Range panel
+  const rangeVal = document.getElementById('rangeVal');
+  rangeVal.textContent = pred.predictedRange === 1 ? '1–18 (МАЛЫЕ)' : pred.predictedRange === 2 ? '19–36 (БОЛЬШИЕ)' : 'ЗЕРО';
+
+  // Top 3
+  const top3Row = document.getElementById('top3Row');
+  const totalS = pred.top3.reduce((acc, n) => acc + Math.max(0, pred.scores[n]), 0) || 1;
+  top3Row.innerHTML = pred.top3.map((n, i) => {
+    const pct = Math.round(Math.max(0, pred.scores[n]) / totalS * 100);
+    const isHit = hitNums.has(n);
+    return `<div class="top3-card rank-${i+1}${isHit ? ' hit' : ''}">
+      <div class="rank">#${i+1}</div>
+      <div class="num ${getColor(n)}">${displayNum(n)}</div>
+      <div class="score">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // Field highlights
+  highlightField(pred.top3, hitNums, last, pred.predictedSector);
+
+  // Save top3 for next round's hit check
+  window._prevTop3 = pred.top3;
+}
+
+function resetInfoPanels() {
+  document.getElementById('colorDot').style.background = 'var(--dim)';
+  document.getElementById('colorVal').textContent = '—';
+  document.getElementById('rangeVal').textContent = '—';
+  [1,2,3].forEach(s => {
+    document.getElementById(`sec${s}`).classList.remove('active');
+    document.getElementById(`sec${s}pct`).textContent = '—';
+  });
+}
+
+function clearFieldHighlights() {
+  document.querySelectorAll('.cell').forEach(c => {
+    c.classList.remove('highlighted', 'selected', 'hit-cell');
+  });
+  document.getElementById('btn0').classList.remove('selected');
+  document.getElementById('btn00').classList.remove('selected');
+  [1,2,3].forEach(s => document.getElementById(`fsec${s}`).classList.remove('sec-active'));
+}
+
+function highlightField(top3Set, hitNums, last, predSector) {
+  const top3 = new Set(top3Set);
+  const hits = new Set(hitNums);
+  document.querySelectorAll('.cell').forEach(c => {
+    const n = parseInt(c.dataset.num);
+    c.classList.remove('highlighted', 'selected', 'hit-cell');
+    if (n === last) c.classList.add('selected');
+    else if (hits.has(n)) c.classList.add('hit-cell');
+    else if (top3.has(n)) c.classList.add('highlighted');
+  });
+  const btn0 = document.getElementById('btn0');
+  const btn00 = document.getElementById('btn00');
+  btn0.classList.remove('selected');
+  btn00.classList.remove('selected');
+  if (last === 0) btn0.classList.add('selected');
+  if (last === 37) btn00.classList.add('selected');
+
+  // Highlight active sector block
+  [1,2,3].forEach(s => {
+    document.getElementById(`fsec${s}`).classList.toggle('sec-active', predSector === s);
+  });
+}
+
+// ============================================================
+// FIELD GENERATION
+// ============================================================
+function buildField() {
+  // Sector 1: 1-12, Sector 2: 13-24, Sector 3: 25-36
+  // Each sector: 12 numbers in 4-col × 3-row grid
+  // Layout per sector (column-major, bottom-to-top matches table feel):
+  // col order: e.g. sec1 = 1,2,3,4,5,6,7,8,9,10,11,12 sorted by column then row
+  [1,2,3].forEach(sec => {
+    const grid = document.getElementById(`fieldGrid${sec}`);
+    const base = (sec - 1) * 12 + 1;
+    // nums in this sector sorted for display: row-by-row
+    // 3 rows × 4 cols
+    const secNums = Array.from({length: 12}, (_, i) => base + i);
+    // sort like standard table: row 1 = top (multiples layout)
+    // col 1: n%3==1, col2: n%3==2, col3: n%3==0 → but here we just go left-right 1..12
+    secNums.forEach(n => {
+      const cell = document.createElement('div');
+      cell.className = `cell ${getColor(n)}`;
+      cell.textContent = n;
+      cell.dataset.num = n;
+      cell.onclick = () => selectNumber(n);
+      grid.appendChild(cell);
+    });
+  });
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function selectNumber(n) {
+  history.push(n);
+  if (history.length > 100) history.shift(); // keep reasonable limit
+  render();
+
+  // Haptic feedback via Telegram API
+  if (window.Telegram?.WebApp?.HapticFeedback) {
+    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+  }
+}
+
+function undoLast() {
+  if (history.length > 0) {
+    history.pop();
+    render();
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    }
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+buildField();
+render();
+
+// Telegram WebApp init
+if (window.Telegram?.WebApp) {
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();
+  Telegram.WebApp.setHeaderColor('#0a0a0a');
+  Telegram.WebApp.setBackgroundColor('#0a0a0a');
+}
+</script>
+</body>
+</html>
